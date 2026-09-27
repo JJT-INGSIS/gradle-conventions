@@ -17,6 +17,25 @@ Las reglas viven en este repositorio y los servicios las reciben al subir de ver
 
 Para cambiar una regla: editar `detekt.yml`, publicar una versión nueva y actualizarla en los servicios. Un error de tipeo en el archivo hace fallar el build, porque detekt valida la configuración.
 
+## Git hooks
+
+La convención agrega la tarea `installGitHooks`. Se corre una vez por clon, desde la raíz del servicio:
+
+```bash
+./gradlew installGitHooks
+```
+
+| Hook | Qué hace |
+|---|---|
+| `pre-commit` | Formatea con `ktlintFormat` los archivos Kotlin en stage, los vuelve a agregar al commit y corre `detektMain` y `detektTest`. Mientras tanto aparta lo que no se está commiteando, así el formato y el análisis ven exactamente el commit. |
+| `pre-push` | Corre `check` completo, con los tests. |
+
+- Si un archivo está solo en parte en stage, el `pre-commit` no toca nada y pide agregar o apartar el resto: formatearlo podría impedir devolver la parte que queda afuera.
+- Al publicar una versión nueva de los scripts, hay que volver a correr `installGitHooks`.
+- El CI no usa los hooks: corre `build` y verifica sin modificar código.
+
+Los scripts están en `src/main/resources/jjt/git-hooks/`.
+
 ## Verificación y publicación
 
 Con JDK 21:
