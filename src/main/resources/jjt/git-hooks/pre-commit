@@ -1,0 +1,55 @@
+#!/bin/sh
+
+staged=$(git diff --cached --name-only --diff-filter=ACMR -- '*.kt' '*.kts')
+if [ -z "$staged" ]; then
+    exit 0
+fi
+
+partly_staged=$(echo "$staged" | while IFS= read -r file; do
+    git diff --quiet -- "$file" || echo "$file"
+done)
+if [ -n "$partly_staged" ]; then
+    echo "pre-commit: these files are only partly staged; stage or stash the rest and commit again:"
+    echo "$partly_staged"
+    exit 1
+fi
+
+unstaged_patch=$(git rev-parse --git-path jjt-pre-commit.patch)
+untracked_dir=$(git rev-parse --git-path jjt-pre-commit-untracked)
+untracked=$(git ls-files --others --exclude-standard -- '*.kt' '*.kts')
+
+put_back() {
+    if [ -n "$untracked" ]; then
+        echo "$untracked" | while IFS= read -r file; do
+            mv -- "$untracked_dir/$file" "$file"
+        done
+        rm -rf "$untracked_dir"
+    fi
+    if [ -s "$unstaged_patch" ]; then
+        git apply "$unstaged_patch"
+    fi
+    rm -f "$unstaged_patch"
+}
+
+git diff --binary > "$unstaged_patch"
+if [ -s "$unstaged_patch" ] && ! git apply --reverse "$unstaged_patch"; then
+    echo "pre-commit: could not set aside the unstaged changes; nothing was touched."
+    rm -f "$unstaged_patch"
+    exit 1
+fi
+if [ -n "$untracked" ]; then
+    echo "$untracked" | while IFS= read -r file; do
+        mkdir -p "$untracked_dir/$(dirname -- "$file")"
+        mv -- "$file" "$untracked_dir/$file"
+    done
+fi
+trap put_back EXIT
+trap 'exit 1' INT TERM
+
+sh ./gradlew --warn ktlintFormat "-PinternalKtlintGitFilter=$staged" || exit 1
+
+echo "$staged" | while IFS= read -r file; do
+    git add -- "$file"
+done
+
+sh ./gradlew --quiet detektMain detektTest
