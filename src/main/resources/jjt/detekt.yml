@@ -1,0 +1,68 @@
+comments:
+  # Un KDoc que menciona parámetros que ya no existen miente. Solo se aplica si hay KDoc.
+  OutdatedDocumentation:
+    active: true
+
+complexity:
+  # Mide cuánto cuesta leer una función, no solo cuántos caminos tiene.
+  CognitiveComplexMethod:
+    active: true
+  # Spring inyecta dependencias por constructor.
+  LongParameterList:
+    allowedConstructorParameters: 8
+  # A partir de cuatro argumentos, nombrarlos evita confundir el orden.
+  NamedArguments:
+    active: true
+    allowedArguments: 3
+
+coroutines:
+  # Solo se aplican si se usan corrutinas.
+  GlobalCoroutineUsage:
+    active: true
+  SuspendFunSwallowedCancellation:
+    active: true
+
+exceptions:
+  # Un TODO() compila y explota en runtime.
+  NotImplementedDeclaration:
+    active: true
+  ObjectExtendsThrowable:
+    active: true
+  ErrorUsageWithThrowable:
+    active: true
+
+potential-bugs:
+  # Un else sobre un sealed o un enum oculta los casos nuevos: olvidarse tiene que ser un error de compilación.
+  ElseCaseInsteadOfExhaustiveWhen:
+    active: true
+  # "$x" con x nullable imprime "null" en silencio.
+  NullableToStringCall:
+    active: true
+  UnnecessaryNotNullCheck:
+    active: true
+  # Castear una List a MutableList rompe la inmutabilidad.
+  DontDowncastCollectionTypes:
+    active: true
+  UnconditionalJumpStatementInLoop:
+    active: true
+
+style:
+  # Lo que circula es inmutable.
+  DataClassShouldBeImmutable:
+    active: true
+  # println en un servicio se pierde: se usa el logger.
+  ForbiddenMethodCall:
+    active: true
+  # Un TODO se puede dejar; algo roto no se puede mergear.
+  ForbiddenComment:
+    comments:
+      - reason: 'Forbidden FIXME todo marker in comment, please fix the problem.'
+        value: 'FIXME:'
+      - reason: 'Forbidden STOPSHIP todo marker in comment, please address the problem before shipping the code.'
+        value: 'STOPSHIP:'
+  # Los guard clauses son el estilo del proyecto.
+  ReturnCount:
+    max: 3
+    excludeGuardClauses: true
+  ThrowsCount:
+    excludeGuardClauses: true
