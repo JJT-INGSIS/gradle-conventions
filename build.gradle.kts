@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "com.jjt.ingsis"
-version = "0.2.0"
+version = "0.3.0"
 
 kotlin {
     jvmToolchain(21)
@@ -22,6 +22,12 @@ dependencies {
     implementation("io.spring.gradle:dependency-management-plugin:1.1.7")
     implementation("org.jlleitschuh.gradle:ktlint-gradle:14.2.0")
     implementation("dev.detekt:detekt-gradle-plugin:2.0.0-alpha.6")
+
+    testImplementation(kotlin("test"))
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
 
 publishing {

@@ -1,0 +1,64 @@
+common: &default_settings
+  license_key: ''
+  app_name: unconfigured-service
+  agent_enabled: true
+  log_file_name: STDOUT
+  log_level: info
+  high_security: false
+  send_data_on_exit: true
+
+  distributed_tracing:
+    enabled: true
+    exclude_newrelic_header: true
+    sampler:
+      remote_parent_sampled: always_on
+      remote_parent_not_sampled: always_off
+
+  span_events:
+    enabled: true
+
+  attributes:
+    enabled: true
+    exclude:
+      - request.headers.*
+      - request.parameters.*
+      - response.headers.*
+      - message.parameters.*
+
+  transaction_tracer:
+    enabled: true
+    record_sql: obfuscated
+    explain_enabled: false
+
+  slow_sql:
+    enabled: false
+
+  strip_exception_messages:
+    enabled: true
+
+  error_collector:
+    enabled: true
+    expected_status_codes: 400-499
+
+  application_logging:
+    enabled: true
+    forwarding:
+      enabled: true
+      max_samples_stored: 10000
+      context_data:
+        enabled: true
+        include:
+          - request.id
+          - operation
+          - outcome
+          - duration.ms
+    local_decorating:
+      enabled: false
+    metrics:
+      enabled: true
+
+  browser_monitoring:
+    auto_instrument: false
+
+production:
+  <<: *default_settings
