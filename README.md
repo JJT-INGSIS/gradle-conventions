@@ -36,6 +36,42 @@ La convención agrega la tarea `installGitHooks`. Se corre una vez por clon, des
 
 Los scripts están en `src/main/resources/jjt/git-hooks/`.
 
+## Agente de New Relic (SNI-81)
+
+`jjt.spring-service` aplica `jjt.newrelic-agent`. Antes de `bootJar`, la tarea `prepareNewRelicAgent` deja en `build/newrelic`:
+
+| Archivo | Contenido |
+|---|---|
+| `newrelic.jar` | Agente Java oficial `9.5.0` de Maven Central. El build falla si su SHA-256 no es `411587286dbb83b06fcdd042ad1c9c1818655831366717aef3611962ea2c1b73` |
+| `newrelic.yml` | Configuración común de los servicios (`src/main/resources/jjt/newrelic/newrelic.yml`) |
+| `start-service.sh` | Script de arranque con el nombre del servicio (`rootProject.name`) |
+
+Cada Dockerfile copia la carpeta y arranca con el script:
+
+```dockerfile
+COPY --from=build /app/build/newrelic /app/newrelic
+ENTRYPOINT ["/app/newrelic/start-service.sh", "/app/app.jar"]
+```
+
+| Variable | Uso |
+|---|---|
+| `NEW_RELIC_ENABLED` | `false` por defecto: arranca con `java -jar`, igual que antes. Cualquier valor que no sea `true` o `false` es un error |
+| `NEW_RELIC_ENVIRONMENT` | `local`, `dev` o `prod`; obligatoria si está activado |
+| `NEW_RELIC_LICENSE_FILE` | Archivo con la licencia; por defecto el secreto de Swarm `/run/secrets/newrelic_license`. Nunca va en la imagen, en variables del stack ni en Git |
+| `NEW_RELIC_SERVICE_VERSION` | Etiqueta `version` (letras, números, `.`, `_`, `-`); por defecto `unknown` |
+
+Activado, el script valida todo antes de arrancar (sale con 64 sin mostrar la licencia), define el nombre `<servicio> (<ambiente>)` y las etiquetas `environment`, `service` y `version`, y agrega `-javaagent`. La licencia pasa a la JVM como variable de entorno del proceso, nunca como argumento.
+
+| Configuración | Por qué |
+|---|---|
+| Solo encabezados W3C; `remote_parent_sampled: always_on` | Los servicios llamados siguen la decisión de muestreo de Snippets |
+| Sin headers ni parámetros de request y respuesta; SQL ofuscado; sin `explain`; mensajes de excepción despojados | No enviar datos de usuario |
+| `expected_status_codes: 400-499` | Código inválido, denegaciones y conflictos no cuentan como errores técnicos |
+| Reenvío de logs con el MDC `request.id`, `operation`, `outcome` y `duration.ms` | Logs del mismo pedido por `trace.id`, sin mandar otros campos del MDC |
+| Log del agente a `STDOUT` | El usuario 10001 no puede escribir en `/app/newrelic` |
+
+Para cambiar la versión del agente: actualizar versión y SHA-256 en `jjt.newrelic-agent.gradle.kts`, publicar una versión nueva y subirla en los servicios.
+
 ## Verificación y publicación
 
 Con JDK 21:

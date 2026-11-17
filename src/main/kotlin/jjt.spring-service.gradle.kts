@@ -10,6 +10,7 @@ plugins {
 
     id("org.jlleitschuh.gradle.ktlint")
     id("dev.detekt")
+    id("jjt.newrelic-agent")
 
     jacoco
 }
@@ -38,12 +39,7 @@ ktlint {
     )
 }
 
-fun sharedResource(path: String): String =
-    checkNotNull(object {}.javaClass.getResource(path)) {
-        "$path is missing from the gradle-conventions jar"
-    }.readText()
-
-val sharedDetektConfig: String = sharedResource("/jjt/detekt.yml")
+val sharedDetektConfig: String = conventionResource("/jjt/detekt.yml")
 
 detekt {
     buildUponDefaultConfig.set(true)
@@ -73,7 +69,7 @@ tasks.named("check") {
 }
 
 val gitHookScripts: Map<String, String> =
-    listOf("pre-commit", "pre-push").associateWith { hook -> sharedResource("/jjt/git-hooks/$hook") }
+    listOf("pre-commit", "pre-push").associateWith { hook -> conventionResource("/jjt/git-hooks/$hook") }
 
 val gitHooksDirectory: Provider<String> =
     providers
