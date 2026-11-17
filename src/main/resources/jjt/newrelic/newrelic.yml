@@ -52,6 +52,10 @@ common: &default_settings
           - operation
           - outcome
           - duration.ms
+          - correlation.id
+          - event.id
+          - job.id
+          - attempt
     local_decorating:
       enabled: false
     metrics:

@@ -37,7 +37,8 @@ class NewRelicConfigurationTest {
     @Test
     fun `client errors are expected and logs carry only the allowed context`() {
         assertSetting("expected_status_codes: 400-499")
-        listOf("request.id", "operation", "outcome", "duration.ms").forEach { assertSetting("- $it") }
+        listOf("request.id", "operation", "outcome", "duration.ms", "correlation.id", "event.id", "job.id", "attempt")
+            .forEach { assertSetting("- $it") }
         assertSetting("local_decorating:\n      enabled: false")
     }
 }

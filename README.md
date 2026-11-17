@@ -67,7 +67,7 @@ Activado, el script valida todo antes de arrancar (sale con 64 sin mostrar la li
 | Solo encabezados W3C; `remote_parent_sampled: always_on` | Los servicios llamados siguen la decisión de muestreo de Snippets |
 | Sin headers ni parámetros de request y respuesta; SQL ofuscado; sin `explain`; mensajes de excepción despojados | No enviar datos de usuario |
 | `expected_status_codes: 400-499` | Código inválido, denegaciones y conflictos no cuentan como errores técnicos |
-| Reenvío de logs con el MDC `request.id`, `operation`, `outcome` y `duration.ms` | Logs del mismo pedido por `trace.id`, sin mandar otros campos del MDC |
+| Reenvío de logs con el MDC `request.id`, `operation`, `outcome`, `duration.ms` y, desde 0.3.1, `correlation.id`, `event.id`, `job.id` y `attempt` | Logs del mismo pedido y del mismo evento o trabajo de fondo (SNI-83), sin mandar otros campos del MDC |
 | Log del agente a `STDOUT` | El usuario 10001 no puede escribir en `/app/newrelic` |
 
 Para cambiar la versión del agente: actualizar versión y SHA-256 en `jjt.newrelic-agent.gradle.kts`, publicar una versión nueva y subirla en los servicios.
