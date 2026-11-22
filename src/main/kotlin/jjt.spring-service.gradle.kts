@@ -1,6 +1,8 @@
 import dev.detekt.gradle.Detekt
 import org.gradle.api.tasks.testing.Test
 import org.gradle.testing.jacoco.tasks.JacocoReport
+import java.nio.file.Files
+import java.nio.file.LinkOption.NOFOLLOW_LINKS
 
 plugins {
     id("org.jetbrains.kotlin.jvm")
@@ -39,7 +41,7 @@ ktlint {
     )
 }
 
-val sharedDetektConfig: String = conventionResource("/jjt/detekt.yml")
+val sharedDetektConfig = conventionResource("/jjt/detekt.yml")
 
 detekt {
     buildUponDefaultConfig.set(true)
@@ -68,10 +70,7 @@ tasks.named("check") {
     dependsOn(tasks.named("jacocoTestReport"))
 }
 
-val gitHookScripts: Map<String, String> =
-    listOf("pre-commit", "pre-push").associateWith { hook -> conventionResource("/jjt/git-hooks/$hook") }
-
-val gitHooksDirectory: Provider<String> =
+val gitHooksDirectory =
     providers
         .exec {
             workingDir(layout.projectDirectory)
@@ -84,17 +83,32 @@ tasks.register("installGitHooks") {
     description = "Installs the shared pre-commit and pre-push hooks in this clone."
 
     val hooksDirectory = gitHooksDirectory
-    val scripts = gitHookScripts
+    val force = providers.gradleProperty("forceGitHooks")
 
     doLast {
         val directory = File(hooksDirectory.get())
         directory.mkdirs()
-        scripts.forEach { (hook, script) ->
-            File(directory, hook).apply {
-                writeText(script)
-                setExecutable(true)
+        for (name in listOf("pre-commit", "pre-push")) {
+            val hook = directory.resolve(name)
+            val path = hook.toPath()
+            val script = conventionResource("/jjt/git-hooks/$name")
+            if (Files.exists(path, NOFOLLOW_LINKS)) {
+                if (!Files.isRegularFile(path, NOFOLLOW_LINKS)) {
+                    logger.warn("Skipping $hook because it is not a regular file.")
+                    continue
+                }
+                if (hook.readText() == script) {
+                    hook.setExecutable(true)
+                    continue
+                }
+                if (!force.isPresent) {
+                    logger.warn("Keeping existing $hook. Run installGitHooks -PforceGitHooks to replace it.")
+                    continue
+                }
             }
+            hook.writeText(script)
+            hook.setExecutable(true)
+            logger.lifecycle("Installed $hook")
         }
-        logger.lifecycle("Installed ${scripts.keys.joinToString()} in $directory")
     }
 }
