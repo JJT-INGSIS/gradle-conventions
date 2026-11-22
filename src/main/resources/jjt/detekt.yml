@@ -23,7 +23,7 @@ coroutines:
     active: true
 
 exceptions:
-  # Un TODO() compila y explota en runtime.
+  # Detecta código pendiente que falla al ejecutarse, como TODO() o throw NotImplementedError().
   NotImplementedDeclaration:
     active: true
   ObjectExtendsThrowable:
@@ -35,25 +35,26 @@ potential-bugs:
   # Un else sobre un sealed o un enum oculta los casos nuevos: olvidarse tiene que ser un error de compilación.
   ElseCaseInsteadOfExhaustiveWhen:
     active: true
-  # "$x" con x nullable imprime "null" en silencio.
+  # Una llamada directa a toString() sobre un valor nullable puede devolver el texto "null".
   NullableToStringCall:
     active: true
   UnnecessaryNotNullCheck:
     active: true
-  # Castear una List a MutableList rompe la inmutabilidad.
+  # Una colección de solo lectura no garantiza que un cast a mutable sea seguro.
   DontDowncastCollectionTypes:
     active: true
   UnconditionalJumpStatementInLoop:
     active: true
 
 style:
-  # Lo que circula es inmutable.
+  # Evita propiedades var en data classes.
   DataClassShouldBeImmutable:
     active: true
-  # println en un servicio se pierde: se usa el logger.
+  # La lista predeterminada prohíbe kotlin.io.print, kotlin.io.println,
+  # BigDecimal(Double), BigDecimal(String) y kotlin.system.measureTimeMillis.
   ForbiddenMethodCall:
     active: true
-  # Un TODO se puede dejar; algo roto no se puede mergear.
+  # Permite comentarios TODO: y rechaza los marcadores FIXME: y STOPSHIP:.
   ForbiddenComment:
     comments:
       - reason: 'Forbidden FIXME todo marker in comment, please fix the problem.'

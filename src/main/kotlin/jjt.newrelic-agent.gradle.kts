@@ -28,6 +28,7 @@ val prepareNewRelicAgent by tasks.registering {
     val expectedSha256 = agentSha256
 
     inputs.files(agentFiles)
+    inputs.property("agentSha256", expectedSha256)
     inputs.property("configuration", configuration)
     inputs.property("startScript", startScript)
     outputs.dir(outputDirectory)

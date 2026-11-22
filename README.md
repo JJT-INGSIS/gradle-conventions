@@ -2,24 +2,18 @@
 
 Convención compartida para los servicios Kotlin/Spring Boot de Snippet Searcher.
 
-`jjt.spring-service` configura Kotlin 2.4.10, Spring Boot 4.1.1, JDK 21, ktlint, detekt, JUnit y reportes JaCoCo HTML/XML. `check` ejecuta las verificaciones y genera el reporte de cobertura. No hay un porcentaje mínimo de cobertura configurado todavía.
-
-Detekt usa `2.0.0-alpha.6` porque esa versión declara compatibilidad con Kotlin 2.4.10.
+[`jjt.spring-service`](src/main/kotlin/jjt.spring-service.gradle.kts) configura Kotlin, Spring Boot, JDK 21, ktlint, Detekt, JUnit y cobertura con JaCoCo. Las versiones de los plugins se fijan en [`build.gradle.kts`](build.gradle.kts).
 
 ## Formato y lint
 
-Las reglas viven en este repositorio y los servicios las reciben al subir de versión. Ningún servicio tiene su propia copia.
+- **ktlint** usa el estilo `ktlint_official` y un límite de 120 columnas.
+- **Detekt** aplica las reglas compartidas de [`detekt.yml`](src/main/resources/jjt/detekt.yml) sobre su configuración predeterminada y valida el archivo al ejecutar el análisis.
 
-- **ktlint** `1.8.0`, estilo `ktlint_official`, 120 columnas. Se configura en `jjt.spring-service.gradle.kts`.
-- **detekt** parte de la config por defecto (`buildUponDefaultConfig`) y aplica los cambios de `src/main/resources/jjt/detekt.yml`. Cada regla del archivo explica por qué se activa o se ajusta.
-
-`check` ejecuta `detektMain` y `detektTest`, que analizan con type resolution. La tarea `detekt` no la tiene, y las reglas que dependen de los tipos (por ejemplo `NullableToStringCall`) se saltearían sin avisar.
-
-Para cambiar una regla: editar `detekt.yml`, publicar una versión nueva y actualizarla en los servicios. Un error de tipeo en el archivo hace fallar el build, porque detekt valida la configuración.
+`check` corre ktlint, `detektMain`, `detektTest` y los tests con JUnit Platform. Las dos tareas de Detekt analizan con resolución de tipos, necesaria para reglas como `NullableToStringCall`. JaCoCo genera reportes HTML y XML sin imponer un mínimo de cobertura.
 
 ## Git hooks
 
-La convención agrega la tarea `installGitHooks`. Se corre una vez por clon, desde la raíz del servicio:
+Para instalar los hooks compartidos, ejecutá desde la raíz del clon del servicio:
 
 ```bash
 ./gradlew installGitHooks
@@ -31,20 +25,22 @@ La convención agrega la tarea `installGitHooks`. Se corre una vez por clon, des
 | `pre-push` | Corre `check` completo, con los tests. |
 
 - Si un archivo está solo en parte en stage, el `pre-commit` no toca nada y pide agregar o apartar el resto: formatearlo podría impedir devolver la parte que queda afuera.
-- Al publicar una versión nueva de los scripts, hay que volver a correr `installGitHooks`.
+- `installGitHooks` respeta la ruta de hooks configurada en Git. Si encuentra un hook distinto, lo conserva y muestra un aviso. Para reemplazar un archivo regular por el hook compartido, ejecutá `./gradlew installGitHooks -PforceGitHooks`.
 - El CI no usa los hooks: corre `build` y verifica sin modificar código.
 
-Los scripts están en `src/main/resources/jjt/git-hooks/`.
+Los scripts están en [`git-hooks/`](src/main/resources/jjt/git-hooks/).
 
-## Agente de New Relic (SNI-81)
+## Agente de New Relic
 
-`jjt.spring-service` aplica `jjt.newrelic-agent`. Antes de `bootJar`, la tarea `prepareNewRelicAgent` deja en `build/newrelic`:
+`jjt.spring-service` aplica [`jjt.newrelic-agent`](src/main/kotlin/jjt.newrelic-agent.gradle.kts). Antes de `bootJar`, la tarea `prepareNewRelicAgent` prepara estos archivos en `build/newrelic`:
 
 | Archivo | Contenido |
 |---|---|
-| `newrelic.jar` | Agente Java oficial `9.5.0` de Maven Central. El build falla si su SHA-256 no es `411587286dbb83b06fcdd042ad1c9c1818655831366717aef3611962ea2c1b73` |
-| `newrelic.yml` | Configuración común de los servicios (`src/main/resources/jjt/newrelic/newrelic.yml`) |
-| `start-service.sh` | Script de arranque con el nombre del servicio (`rootProject.name`) |
+| `newrelic.jar` | Agente Java oficial de Maven Central, validado contra el SHA-256 fijado en la convención. |
+| `newrelic.yml` | [Configuración compartida del agente](src/main/resources/jjt/newrelic/newrelic.yml). |
+| `start-service.sh` | [Script de arranque](src/main/resources/jjt/newrelic/start-service.sh) con el nombre del proyecto Gradle. |
+
+Gradle vuelve a ejecutar la tarea si cambia el JAR, el SHA-256 esperado, la configuración o el script generado.
 
 Cada Dockerfile copia la carpeta y arranca con el script:
 
@@ -55,31 +51,31 @@ ENTRYPOINT ["/app/newrelic/start-service.sh", "/app/app.jar"]
 
 | Variable | Uso |
 |---|---|
-| `NEW_RELIC_ENABLED` | `false` por defecto: arranca con `java -jar`, igual que antes. Cualquier valor que no sea `true` o `false` es un error |
-| `NEW_RELIC_ENVIRONMENT` | `local`, `dev` o `prod`; obligatoria si está activado |
-| `NEW_RELIC_LICENSE_FILE` | Archivo con la licencia; por defecto el secreto de Swarm `/run/secrets/newrelic_license`. Nunca va en la imagen, en variables del stack ni en Git |
-| `NEW_RELIC_SERVICE_VERSION` | Etiqueta `version` (letras, números, `.`, `_`, `-`); por defecto `unknown` |
+| `NEW_RELIC_ENABLED` | Acepta `true` o `false`. El valor predeterminado es `false` y arranca con `java -jar`. |
+| `NEW_RELIC_ENVIRONMENT` | `local`, `dev` o `prod`. Obligatoria cuando el agente está activado. |
+| `NEW_RELIC_LICENSE_FILE` | Ruta al archivo con la licencia. Por defecto usa el secreto de Swarm `/run/secrets/newrelic_license`. |
+| `NEW_RELIC_SERVICE_VERSION` | Etiqueta `version` (letras, números, `.`, `_` y `-`). El valor predeterminado es `unknown`. |
 
-Activado, el script valida todo antes de arrancar (sale con 64 sin mostrar la licencia), define el nombre `<servicio> (<ambiente>)` y las etiquetas `environment`, `service` y `version`, y agrega `-javaagent`. La licencia pasa a la JVM como variable de entorno del proceso, nunca como argumento.
+Al activar el agente, el script valida su configuración, define el nombre `<servicio> (<ambiente>)` y las etiquetas `environment`, `service` y `version`, y arranca la JVM con `-javaagent`. La licencia se lee del archivo montado y se pasa a la JVM mediante el entorno del proceso.
 
-| Configuración | Por qué |
+| Señal | Configuración |
 |---|---|
-| Solo encabezados W3C; `remote_parent_sampled: always_on` | Los servicios llamados siguen la decisión de muestreo de Snippets |
-| Sin headers ni parámetros de request y respuesta; SQL ofuscado; sin `explain`; mensajes de excepción despojados | No enviar datos de usuario |
-| `expected_status_codes: 400-499` | Código inválido, denegaciones y conflictos no cuentan como errores técnicos |
-| Reenvío de logs con el MDC `request.id`, `operation`, `outcome`, `duration.ms` y, desde 0.3.1, `correlation.id`, `event.id`, `job.id` y `attempt` | Logs del mismo pedido y del mismo evento o trabajo de fondo (SNI-83), sin mandar otros campos del MDC |
-| Log del agente a `STDOUT` | El usuario 10001 no puede escribir en `/app/newrelic` |
-
-Para cambiar la versión del agente: actualizar versión y SHA-256 en `jjt.newrelic-agent.gradle.kts`, publicar una versión nueva y subirla en los servicios.
+| Trazas | Propagación W3C. Cuando recibe una traza de otro servicio, el agente conserva la decisión de muestreo que viene en el encabezado. |
+| Atributos y SQL | Excluye encabezados de solicitudes y respuestas, parámetros de solicitudes y de mensajes. Ofusca SQL y desactiva `EXPLAIN` y la captura de SQL lento. |
+| Errores | Omite los mensajes de excepción y clasifica los HTTP `400–499` como errores esperados. |
+| Logs de aplicación | Reenvía el texto del mensaje y únicamente los campos MDC `request.id`, `operation`, `outcome`, `duration.ms`, `correlation.id`, `event.id`, `job.id` y `attempt`. El texto del log debe quedar libre de datos sensibles. |
+| Logs del agente | Salida por `STDOUT`. |
+| Browser | La autoinstrumentación del navegador está desactivada en el agente Java. |
 
 ## Verificación y publicación
 
-Con JDK 21:
+Para verificar la convención con JDK 21:
 
 ```bash
 ./gradlew check
-./gradlew publishToMavenLocal
 ```
+
+Para probar el plugin desde un consumidor local, publicalo primero en Maven Local con `./gradlew publishToMavenLocal`.
 
 Para publicar en GitHub Packages, configurar `GITHUB_ACTOR` y `GITHUB_TOKEN` con permisos de publicación y ejecutar:
 
@@ -87,4 +83,4 @@ Para publicar en GitHub Packages, configurar `GITHUB_ACTOR` y `GITHUB_TOKEN` con
 ./gradlew publish
 ```
 
-El ID del plugin y su versión se fijan en cada servicio. Al cambiar la convención, publicar una versión nueva y actualizar explícitamente los consumidores.
+Cada servicio fija el ID y la versión del plugin. Los cambios de la convención llegan a los servicios cuando estos adoptan una versión publicada.
